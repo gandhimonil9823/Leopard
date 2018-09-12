@@ -72,7 +72,7 @@ class LeopardServices(object):
         notify_id = self.request.json_body["notification_id"]
 
         errors = validate_object(notify_request, raise_validation_exception=False)
-        print(errors)
+
         if errors:
             raise exc.HTTPBadRequest("Please enter valid application_id, customer_id and noification_id")
 
@@ -80,7 +80,7 @@ class LeopardServices(object):
 
     def query_database_call(self,app_id,customer_id,notif_id):
         self.query.database_query(app_id,customer_id,notif_id)
-        print json_spawn
+        self.log(json_spawn)
 
 
 class Application(ComponentCore):

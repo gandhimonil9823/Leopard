@@ -19,7 +19,7 @@ class Query(object):
 
         for document in table.find(
                 {"application_id": application_id, "customer_id": customer_id, "notification_id": notification_id}):
-            print(str(document["Template"]))
+            self.log(str(document["Template"]))
 
 
 
