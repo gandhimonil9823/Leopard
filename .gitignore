@@ -1,0 +1,16 @@
+# Compiled cruft.
+*.pyc
+
+# Dev environment cruft.
+.idea/
+venv/
+BUILD/
+.coverage
+*.egg-info/
+node_modules/
+
+# Deployment cruft.
+dist/
+
+# OS cruft
+.DS_Store
