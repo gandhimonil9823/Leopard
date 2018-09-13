@@ -34,6 +34,7 @@ from gevent.pywsgi import WSGIServer
 from pyramid.config import Configurator
 from pyramid.view import view_config, view_defaults
 
+from leopard.template.jinja_template import Jinja
 from leopard.query.query import Query
 from ontic.ontic_type import OnticType
 from ontic.ontic_type import validate_object
@@ -61,6 +62,7 @@ class LeopardServices(object):
         self.request = request
         self.log = request.log
         self.query = request.query
+        self.jinja = request.jinja
 
     @view_config(route_name='send', request_method='POST')
     def send(self):
@@ -70,9 +72,13 @@ class LeopardServices(object):
         app_id = self.request.json_body['application_id']
         customer_id = self.request.json_body["customer_id"]
         notify_id = self.request.json_body["notification_id"]
+        paramters_arr = self.request.json_body["parameters"]
+
+        template = self.jinja.generate_param_body(paramters_arr)
+
+        self.log.debug(template)
 
         errors = validate_object(notify_request, raise_validation_exception=False)
-
         if errors:
             raise exc.HTTPBadRequest("Please enter valid application_id, customer_id and noification_id")
 
@@ -80,7 +86,7 @@ class LeopardServices(object):
 
     def query_database_call(self,app_id,customer_id,notif_id):
         self.query.database_query(app_id,customer_id,notif_id)
-        self.log(json_spawn)
+        self.log.debug(json_spawn)
 
 
 class Application(ComponentCore):
@@ -105,6 +111,7 @@ class Application(ComponentCore):
     def cognate_configure(self, args):
         # Configure the ingestion service.
         self.query_handle = Query()
+        self.template_handler = Jinja()
 
     def run(self):
         config = Configurator()
@@ -135,6 +142,8 @@ class Application(ComponentCore):
         # Adding logging object.
         config.add_request_method((lambda _: self.log), 'log', reify=True)
         config.add_request_method((lambda _: self.query_handle), 'query', reify=True)
+        config.add_request_method((lambda _: self.template_handler), 'jinja', reify=True)
+
 
         # =================================================================== #
 
