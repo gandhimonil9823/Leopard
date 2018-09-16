@@ -41,6 +41,7 @@ from ontic.ontic_type import validate_object
 from ontic.schema_type import SchemaType
 import gevent
 import pyramid.httpexceptions as exc
+import random
 
 
 json_spawn = {
@@ -54,7 +55,6 @@ class NotifyRequest(OnticType):
            'notification_id': {'type':'int', 'min': 0, 'required':True}
        })
 
-
 @view_defaults(renderer='json', accept='application/json')
 class LeopardServices(object):
 
@@ -64,8 +64,8 @@ class LeopardServices(object):
         self.query = request.query
         self.jinja = request.jinja
 
-    @view_config(route_name='send', request_method='POST')
-    def send(self):
+    @view_config(route_name='query', request_method='POST')
+    def query(self):
         notify_request = NotifyRequest(self.request.json_body)
         self.log.debug('send - json_body: %s', notify_request)
 
@@ -88,6 +88,39 @@ class LeopardServices(object):
         self.query.database_query(app_id,customer_id,notif_id)
         self.log.debug(json_spawn)
 
+    @view_config(route_name='create', request_method='POST')
+    def create(self):
+
+        app_id = self.request.json_body['application_id']
+        customer_id = self.request.json_body["customer_id"]
+        notify_id = random.randrange(1, 100)
+        template = self.request.json_body["Template"]
+
+        self.log.debug(self.query.create_document_template(app_id, customer_id, notify_id, template))
+
+        return notify_id
+
+    @view_config(route_name='list', request_method='POST')
+    def list(self):
+        app_id = self.request.json_body['application_id']
+        customer_id = self.request.json_body["customer_id"]
+        return_obj = self.query.list_all(customer_id, app_id)
+        self.log.debug(return_obj)
+        return return_obj
+
+    @view_config(route_name='delete', request_method='POST')
+    def delete(self):
+        app_id = self.request.json_body['application_id']
+        customer_id = self.request.json_body["customer_id"]
+        return self.query.delete_one_document(app_id, customer_id)
+
+    @view_config(route_name='update', request_method='POST')
+    def update(self):
+
+        app_id = self.request.json_body['application_id']
+        customer_id = self.request.json_body["customer_id"]
+        template = self.request.json_body["Template"]
+        return self.query.update_document(app_id, customer_id, template)
 
 class Application(ComponentCore):
 
@@ -132,7 +165,14 @@ class Application(ComponentCore):
         # https://docs.pylonsproject.org/projects/pyramid/en/latest/narr/urldispatch.html
         #
         # NOTE: Modify the listing below to add and remove routes.
-        config.add_route('send', '/send')
+        config.add_route('query', '/query')
+        config.add_route('create', '/create')
+        config.add_route('list', '/list')
+        config.add_route('delete', '/delete')
+        config.add_route('update', '/update')
+
+
+
 
         # =================================================================== #
 
