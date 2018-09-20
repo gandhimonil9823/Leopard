@@ -42,6 +42,8 @@ from ontic.schema_type import SchemaType
 import gevent
 import pyramid.httpexceptions as exc
 import random
+from query.recipients_query import QueryRecipients
+from notifications.email import Email
 
 
 json_spawn = {
@@ -63,6 +65,7 @@ class LeopardServices(object):
         self.log = request.log
         self.query = request.query
         self.jinja = request.jinja
+
 
     @view_config(route_name='query', request_method='POST')
     def query(self):
@@ -121,6 +124,21 @@ class LeopardServices(object):
         customer_id = self.request.json_body["customer_id"]
         template = self.request.json_body["Template"]
         return self.query.update_document(app_id, customer_id, template)
+
+
+
+    @view_config(route_name='update', request_method='POST')
+    def email(self):
+        #just calling the create message for now. No sure of the request paramaters
+        return Email.create_message_send()
+
+
+
+
+
+
+
+
 
 class Application(ComponentCore):
 
