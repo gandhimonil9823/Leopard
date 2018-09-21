@@ -33,6 +33,7 @@ from cognate import ComponentCore
 from gevent.pywsgi import WSGIServer
 from pyramid.config import Configurator
 from pyramid.view import view_config, view_defaults
+from pymongo import MongoClient
 
 from leopard.template.jinja_template import Jinja
 from leopard.query.query import Query
@@ -43,7 +44,11 @@ import gevent
 import pyramid.httpexceptions as exc
 import random
 from query.recipients_query import QueryRecipients
-from notifications.email import Email
+import smtplib
+from email.mime.text import MIMEText
+from leopard.template.email_template import JinjaEmail
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 json_spawn = {
@@ -65,7 +70,8 @@ class LeopardServices(object):
         self.log = request.log
         self.query = request.query
         self.jinja = request.jinja
-
+        self.client = MongoClient('mongodb://127.0.0.1:27017')
+        self.db = self.client["XenioDatabase"]
 
     @view_config(route_name='query', request_method='POST')
     def query(self):
@@ -129,15 +135,63 @@ class LeopardServices(object):
 
     @view_config(route_name='update', request_method='POST')
     def email(self):
-        #just calling the create message for now. No sure of the request paramaters
-        return Email.create_message_send()
+        customer_id = self.request.json_body["customer_id"]
+        notify_id = self.request.json_body["notification_id"]
+        paramters_arr = self.request.json_body["parameters"]
+
+        s = smtplib.SMTP(host='your_host_address_here', port="port here")
+
+        notifier_instance = EmailNotifier(s, self.db)
+        notifier_instance.send_email(notify_id, customer_id,paramters_arr)
 
 
+class EmailNotifier(object):
+    def __init__(self, email_connection, db_connection):
+        self.db_connection = db_connection
+        self.email_connection = email_connection
 
+    def send_email(self, notification_id, notification_type, customer_id, params):
+        # get template
+        template_config = self.db_connection["Notification"]
 
+        document = template_config.find({"customer_id": customer_id, "_id": notification_id, "Notification_Type" : notification_type})
+        subject = document["Template_Subject"]
+        body = document["Template_Body"]
 
+        recipients = self.db_connection["Recipients"]
+        if recipients.find({"Notification_id": notification_id}) is None:
+            self.single_user(notification_id, notification_type, customer_id, params, subject, body)
+        else:
+            for document in recipients.find({"Notification_id": notification_id}):
+                recipient_email = document["Recipients_Email"]
 
+                msg = MIMEMultipart()
 
+                msg['Subject'] = 'Dear %s' % params["Name"] + subject
+                msg['From'] = "gandhimonil.2008@gmail.com"
+                msg['To'] = recipient_email
+
+                msg.attach(MIMEText(body, 'plain'))
+
+                self.email_connection.send(msg)
+
+    def single_user(self,notification_id, notification_type, customer_id, params, subject, body):
+        customer_config = self.db_connection["Customer"]
+
+        document = customer_config.find(
+            {"customer_id": customer_id})
+
+        customer_email = document["Email"]
+
+        msg = MIMEMultipart()
+
+        msg['Subject'] = 'Dear %s' % params["Name"] + subject
+        msg['From'] = "gandhimonil.2008@gmail.com"
+        msg['To'] = customer_email
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        self.email_connection.send(msg)
 
 
 class Application(ComponentCore):
@@ -171,7 +225,7 @@ class Application(ComponentCore):
         #
         # For url pattern matching see:
         # https://docs.pylonsproject.org/projects/pyramid/en/latest/narr/urldispatch.html
-        #
+        #`
         # NOTE: Modify the listing below to add and remove static routes.
         config.add_static_view(name='static', path='static')
         # =================================================================== #
