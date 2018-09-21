@@ -8,6 +8,7 @@ BUILD/
 .coverage
 *.egg-info/
 node_modules/
+/aws_config.sh
 
 # Deployment cruft.
 dist/
